@@ -8,7 +8,7 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 20px; color: #2c3e50; }
         .container { max-width: 1100px; margin: auto; }
-        .dashboard-header { background: #fff; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .dashboard-header { background: #fff; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; }
         .chart-container { background: #fff; padding: 20px; border-radius: 12px; height: 350px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
         .card { background: #fff; padding: 20px; border-radius: 12px; text-align: center; 
@@ -17,7 +17,7 @@
         .card img { max-width: 100%; height: 160px; object-fit: contain; margin-bottom: 15px; }
         h3 { font-size: 14px; height: 45px; overflow: hidden; margin: 10px 0; line-height: 1.4; color: #34495e; }
         .price { color: #27ae60; font-weight: bold; margin: 10px 0; }
-        .filters { display: flex; gap: 10px; margin-bottom: 20px; }
+        .filters { display: flex; gap: 10px; margin-bottom: 20px; clear: both; padding-top: 15px; }
         input, select, button { padding: 12px; border-radius: 8px; border: 1px solid #cfd8dc; outline: none; }
         input { flex: 1; }
         button { background: #2c3e50; color: white; border: none; cursor: pointer; font-weight: bold; padding: 0 25px; }
@@ -26,11 +26,33 @@
                         margin-bottom: 25px; border-top: 4px solid #3498db; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         .specs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
         .spec-item { background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 13px; border-left: 3px solid #dee2e6; }
+
+        /* Estilo do Botão GitHub */
+        .btn-github {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #24292e;
+            color: white !important;
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+            float: right;
+        }
+        .btn-github:hover { background: #444d56; }
+        .btn-github svg { fill: white; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="dashboard-header">
+            <a href="https://github.com/Dav1dMarques/mercado-livre-bi-dashboard" target="_blank" class="btn-github">
+                <svg height="20" width="20" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+                Ver código no GitHub
+            </a>
             <h1>Analytics de Mercado</h1>
             <div class="filters">
                 <input type="text" id="busca" placeholder="Analise um produto ou termo (ex: Cadeira Gamer)">
@@ -65,108 +87,97 @@
     <script>
         let meuGrafico;
 
-async function executarTudo() {
-    let q = document.getElementById('busca').value.trim(); // Use .trim() para evitar espaços
-    let cat = document.getElementById('categoria').value;
-    const listaDiv = document.getElementById('listaProdutos');
+        async function executarTudo() {
+            let q = document.getElementById('busca').value.trim();
+            let cat = document.getElementById('categoria').value;
+            const listaDiv = document.getElementById('listaProdutos');
             if (meuGrafico) {
-            meuGrafico.destroy();
+                meuGrafico.destroy();
             }
-    //document.getElementById('graficoTrends').innerHTML = "";
-    listaDiv.innerHTML = "<p style='grid-column: 1/-1; text-align:center;'>Aguarde... selecionando produtos...</p>";
+            listaDiv.innerHTML = "<p style='grid-column: 1/-1; text-align:center;'>Aguarde... selecionando produtos...</p>";
 
-    try {
-        // 1. Atualiza o Gráfico de BI (Trends)
-        // Se cat estiver vazio, enviamos apenas trends.php, o que deve disparar os trends gerais no PHP
-        const urlTrends = cat ? `trends.php?cat=${cat}` : `trends.php`;
-        const resT = await fetch(urlTrends);
-        const dadosT = await resT.json();
-        renderizarGrafico(dadosT);
+            try {
+                const urlTrends = cat ? `trends.php?cat=${cat}` : `trends.php`;
+                const resT = await fetch(urlTrends);
+                const dadosT = await resT.json();
+                renderizarGrafico(dadosT);
 
-        // 2. Busca os Produtos
-        // Montamos a query dinamicamente para não enviar "q=" vazio
-        let params = new URLSearchParams();
-        if (q) params.append('q', q);
-        if (cat) params.append('cat', cat);
-        
-        // Se ambos estiverem vazios, a busca.php será chamada sem parâmetros
-        const resP = await fetch(`busca.php?${params.toString()}`);
-        const produtos = await resP.json();
-        
-        let html = '';
-        if (!produtos || produtos.length === 0) {
-            html = '<p style="grid-column: 1/-1; text-align:center;">Nenhum produto compatível encontrado para os filtros aplicados.</p>';
-        } else {
-            produtos.forEach(p => {
-                html += `
-                <div class="card" onclick="verDetalhes('${p.id}')">
-                    <img src="${p.img || 'https://via.placeholder.com/160'}">
-                    <h3>${p.title}</h3>
-                    <p class="price">${p.price}</p>
-                    <span style="font-size:10px; color:#3498db;">Clique para Especificações</span>
-                </div>`;
-            });
-        }
-        listaDiv.innerHTML = html;
-
-    } catch (error) {
-        console.error(error);
-        listaDiv.innerHTML = "<p style='grid-column: 1/-1; text-align:center; color:red;'>Erro na análise de dados. Verifique a conexão.</p>";
-    }
-}
-
-            function renderizarGrafico(dados) {
-                // 1. Se não houver dados, destrói o gráfico existente (limpa a tela) e sai
-                if (!dados || dados.length === 0) {
-                    if (meuGrafico) {
-                        meuGrafico.destroy();
-                        meuGrafico = null;
-                    }
-                    return;
+                let params = new URLSearchParams();
+                if (q) params.append('q', q);
+                if (cat) params.append('cat', cat);
+                
+                const resP = await fetch(`busca.php?${params.toString()}`);
+                const produtos = await resP.json();
+                
+                let html = '';
+                if (!produtos || produtos.length === 0) {
+                    html = '<p style="grid-column: 1/-1; text-align:center;">Nenhum produto compatível encontrado para os filtros aplicados.</p>';
+                } else {
+                    produtos.forEach(p => {
+                        html += `
+                        <div class="card" onclick="verDetalhes('${p.id}')">
+                            <img src="${p.img || 'https://via.placeholder.com/160'}">
+                            <h3>${p.title}</h3>
+                            <p class="price">${p.price}</p>
+                            <span style="font-size:10px; color:#3498db;">Clique para Especificações</span>
+                        </div>`;
+                    });
                 }
-            
-                // 2. Prepara os dados (Top 10)
-                const labels = dados.slice(0, 10).map(i => i.keyword.toUpperCase());
-                const valores = labels.map((_, i) => 100 - (i * 10));
-            
-                // 3. Destrói o gráfico anterior ANTES de criar o novo (evita duplicidade)
+                listaDiv.innerHTML = html;
+
+            } catch (error) {
+                console.error(error);
+                listaDiv.innerHTML = "<p style='grid-column: 1/-1; text-align:center; color:red;'>Erro na análise de dados. Verifique a conexão.</p>";
+            }
+        }
+
+        function renderizarGrafico(dados) {
+            if (!dados || dados.length === 0) {
                 if (meuGrafico) {
                     meuGrafico.destroy();
+                    meuGrafico = null;
                 }
-            
-                // 4. Localiza o elemento Canvas
-                const canvasElement = document.getElementById('meuGraficoBI');
-                if (!canvasElement) return; 
-            
-                const ctx = canvasElement.getContext('2d');
-            
-                // 5. Instancia o novo gráfico
-                meuGrafico = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Interesse do Consumidor (Score %)',
-                            data: valores,
-                            backgroundColor: '#3498db',
-                            borderRadius: 5
-                        }]
+                return;
+            }
+        
+            const labels = dados.slice(0, 10).map(i => i.keyword.toUpperCase());
+            const valores = labels.map((_, i) => 100 - (i * 10));
+        
+            if (meuGrafico) {
+                meuGrafico.destroy();
+            }
+        
+            const canvasElement = document.getElementById('meuGraficoBI');
+            if (!canvasElement) return; 
+        
+            const ctx = canvasElement.getContext('2d');
+        
+            meuGrafico = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Interesse do Consumidor (Score %)',
+                        data: valores,
+                        backgroundColor: '#3498db',
+                        borderRadius: 5
+                    }]
+                },
+                options: { 
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    plugins: { 
+                        legend: { position: 'top' } 
                     },
-                    options: { 
-                        maintainAspectRatio: false,
-                        responsive: true,
-                        plugins: { 
-                            legend: { position: 'top' } 
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100
-                            }
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
                         }
                     }
-                });
-            }
+                }
+            });
+        }
 
         async function verDetalhes(id) {
             const area = document.getElementById('detalheArea');
