@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BI Trends - Inteligência de Sortimento</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 20px; color: #2c3e50; }
+        .container { max-width: 1100px; margin: auto; }
+        .dashboard-header { background: #fff; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .chart-container { background: #fff; padding: 20px; border-radius: 12px; height: 350px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+        .card { background: #fff; padding: 20px; border-radius: 12px; text-align: center; 
+                transition: 0.3s; border: 1px solid #e0e0e0; cursor: pointer; display: flex; flex-direction: column; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-color: #3498db; }
+        .card img { max-width: 100%; height: 160px; object-fit: contain; margin-bottom: 15px; }
+        h3 { font-size: 14px; height: 45px; overflow: hidden; margin: 10px 0; line-height: 1.4; color: #34495e; }
+        .price { color: #27ae60; font-weight: bold; margin: 10px 0; }
+        .filters { display: flex; gap: 10px; margin-bottom: 20px; }
+        input, select, button { padding: 12px; border-radius: 8px; border: 1px solid #cfd8dc; outline: none; }
+        input { flex: 1; }
+        button { background: #2c3e50; color: white; border: none; cursor: pointer; font-weight: bold; padding: 0 25px; }
+        button:hover { background: #1a252f; }
+        #detalheArea { display: none; background: #fff; padding: 25px; border-radius: 12px; 
+                        margin-bottom: 25px; border-top: 4px solid #3498db; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .specs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .spec-item { background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 13px; border-left: 3px solid #dee2e6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="dashboard-header">
+            <h1>Analytics de Mercado</h1>
+            <div class="filters">
+                <input type="text" id="busca" placeholder="Analise um produto ou termo (ex: Cadeira Gamer)">
+                <select id="categoria">
+                    <option value="">-- Todas as Categorias --</option>
+                    <option value="MLB1648">Informática</option>
+                    <option value="MLB1051">Celulares</option>
+                    <option value="MLB1403">Alimentos</option>
+                    <option value="MLB5672">Acessórios para Veículos</option>
+                    <option value="MLB1039">Eletrodomésticos</option>
+                    <option value="MLB1144">Games</option>
+                    <option value="MLB1276">Esportes e Fitness</option>
+                    <option value="MLB1430">Ferramentas</option>
+                    <option value="MLB1574">Casa e Decoração</option>
+                    <option value="MLB1117">Brinquedos</option>
+                    <option value="MLB1246">Beleza e Cuidado Pessoal</option>
+                    <option value="MLB1367">Câmeras e Acessórios</option>
+                    <option value="MLB1743">Veículos</option>
+                </select>
+                <button onclick="executarTudo()">EXECUTAR ANÁLISE</button>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="meuGraficoBI"></canvas>
+        </div>
+
+        <div id="detalheArea"></div>
+        <div id="listaProdutos" class="grid"></div>
+    </div>
+
+    <script>
+        let meuGrafico;
+
+async function executarTudo() {
+    let q = document.getElementById('busca').value.trim(); // Use .trim() para evitar espaços
+    let cat = document.getElementById('categoria').value;
+    const listaDiv = document.getElementById('listaProdutos');
+            if (meuGrafico) {
+            meuGrafico.destroy();
+            }
+    //document.getElementById('graficoTrends').innerHTML = "";
+    listaDiv.innerHTML = "<p style='grid-column: 1/-1; text-align:center;'>Aguarde... selecionando produtos...</p>";
+
+    try {
+        // 1. Atualiza o Gráfico de BI (Trends)
+        // Se cat estiver vazio, enviamos apenas trends.php, o que deve disparar os trends gerais no PHP
+        const urlTrends = cat ? `trends.php?cat=${cat}` : `trends.php`;
+        const resT = await fetch(urlTrends);
+        const dadosT = await resT.json();
+        renderizarGrafico(dadosT);
+
+        // 2. Busca os Produtos
+        // Montamos a query dinamicamente para não enviar "q=" vazio
+        let params = new URLSearchParams();
+        if (q) params.append('q', q);
+        if (cat) params.append('cat', cat);
+        
+        // Se ambos estiverem vazios, a busca.php será chamada sem parâmetros
+        const resP = await fetch(`busca.php?${params.toString()}`);
+        const produtos = await resP.json();
+        
+        let html = '';
+        if (!produtos || produtos.length === 0) {
+            html = '<p style="grid-column: 1/-1; text-align:center;">Nenhum produto compatível encontrado para os filtros aplicados.</p>';
+        } else {
+            produtos.forEach(p => {
+                html += `
+                <div class="card" onclick="verDetalhes('${p.id}')">
+                    <img src="${p.img || 'https://via.placeholder.com/160'}">
+                    <h3>${p.title}</h3>
+                    <p class="price">${p.price}</p>
+                    <span style="font-size:10px; color:#3498db;">Clique para Especificações</span>
+                </div>`;
+            });
+        }
+        listaDiv.innerHTML = html;
+
+    } catch (error) {
+        console.error(error);
+        listaDiv.innerHTML = "<p style='grid-column: 1/-1; text-align:center; color:red;'>Erro na análise de dados. Verifique a conexão.</p>";
+    }
+}
+
+            function renderizarGrafico(dados) {
+                // 1. Se não houver dados, destrói o gráfico existente (limpa a tela) e sai
+                if (!dados || dados.length === 0) {
+                    if (meuGrafico) {
+                        meuGrafico.destroy();
+                        meuGrafico = null;
+                    }
+                    return;
+                }
+            
+                // 2. Prepara os dados (Top 10)
+                const labels = dados.slice(0, 10).map(i => i.keyword.toUpperCase());
+                const valores = labels.map((_, i) => 100 - (i * 10));
+            
+                // 3. Destrói o gráfico anterior ANTES de criar o novo (evita duplicidade)
+                if (meuGrafico) {
+                    meuGrafico.destroy();
+                }
+            
+                // 4. Localiza o elemento Canvas
+                const canvasElement = document.getElementById('meuGraficoBI');
+                if (!canvasElement) return; 
+            
+                const ctx = canvasElement.getContext('2d');
+            
+                // 5. Instancia o novo gráfico
+                meuGrafico = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Interesse do Consumidor (Score %)',
+                            data: valores,
+                            backgroundColor: '#3498db',
+                            borderRadius: 5
+                        }]
+                    },
+                    options: { 
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        plugins: { 
+                            legend: { position: 'top' } 
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+        async function verDetalhes(id) {
+            const area = document.getElementById('detalheArea');
+            area.style.display = 'block';
+            area.innerHTML = "<h4>Mapeando atributos técnicos...</h4>";
+            area.scrollIntoView({ behavior: 'smooth' });
+
+            try {
+                const res = await fetch(`detalhes.php?id=${id}`);
+                const d = await res.json();
+
+                let specsHtml = `
+                    <div style="display:flex; justify-content:space-between; align-items:start">
+                        <h2 style="margin:0">${d.title || 'Detalhes do Produto'}</h2>
+                        <button onclick="document.getElementById('detalheArea').style.display='none'" style="background:#e74c3c">FECHAR</button>
+                    </div>
+                    <div style="display:flex; gap:30px; margin-top:20px; flex-wrap:wrap">
+                        <img src="${d.img}" style="width:180px; height:180px; object-fit:contain; background:#fff; padding:10px; border-radius:8px; border:1px solid #eee">
+                        <div style="flex:1">
+                            <p><strong>Mapeamento de Atributos:</strong></p>
+                            <div class="specs-grid">`;
+
+                if (d.specs && d.specs.length > 0) {
+                    d.specs.forEach(s => {
+                        specsHtml += `<div class="spec-item"><strong>${s.name}:</strong> ${s.value}</div>`;
+                    });
+                } else {
+                    specsHtml += `<p>Nenhum atributo técnico detalhado disponível para este modelo.</p>`;
+                }
+
+                specsHtml += `</div></div></div>`;
+                area.innerHTML = specsHtml;
+            } catch (e) {
+                area.innerHTML = "<p>Erro ao carregar atributos técnicos. O produto pode não ter catálogo detalhado.</p>";
+            }
+        }
+    </script>
+</body>
+</html>
